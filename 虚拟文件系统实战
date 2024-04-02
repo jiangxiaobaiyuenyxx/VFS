@@ -1,0 +1,34 @@
+由此对于虚拟文件的基本架构有了一定的理解，但是如果想要对于虚拟文件有比较深刻的认识还是比较模糊的，那么我们来通过自己伪码来操作一下文件，
+以描述linux内核是如何来读写文件的，我们以写文件为例来过一下整个流程：
+需求：从0开始向文件/testmount/testdir/testfile1.txt 中写入 hello world
+基本过程其基本系统调用过程为1.mkdir 2. creat 3. open 4. write
+mkdir对应的函数调用的执行过程如下：
+rootInode = sb->s_root->d_inode;
+testDirDentry = dentry("testdir")
+testDirInode = rootInode->i_op->mkdir(rootInode , testDirDentry, 777))
+creat对应的函数调用的执行过程如下：
+testFileDentry = dentry("testfile1.txt")
+testFileInode = testDirInode->i_op->create(testDirInode, testFileDentry, 777 )
+open 的系统调用的执行过程如下
+testFileInode->f_op->open(testFileInode, testfile)
+write的系统调用的执行过程如下
+testfile->f_op->write(file, "hello world", len, 0)
+具体流程：
+
+假设现在我们有一个快磁盘设备/dev/sda，我们将其格式化为EX2文件系统，具体怎么将块设备格式化这个我们再设备管理章节在描述。
+我们将该磁盘挂载到/testmount 目录，这样内核就会通过挂载模块注册对应的superblock，具体如何挂载且听下回分解。
+我们想要写文件/testmount/testdir/testfile1.txt文件，那么首先会要根据文件名完整路径查找对应的目录项，并在不存在的时候创建对应的inode文件。
+3.1 根据完整路径找到对应的挂载点的superblock，我们这里最精确的匹配sb是/testmount
+3.2 找到sb后，找到当前sb的root dentry，找到root dentry对应的inode，通过inode中的address_space从磁盘中读取信息，如果是目录则其中存储内容为所有子条目信息，
+从而构建完整的root dentry中的子条目；发现没有对应testdir的目录，这时候就会报目录不存在的错误；用户开始创建对应的目录，并将对应的信息写回inode对应的设备；
+同理也需要在/testdir目录下创建testfile1.txt文件并写回/testdir对应的inode设备。
+找到inode之后，我们需要通过open系统调用打开对应的文件，
+进程通过files_struct中的next_fd申请分配一个文件描述符，然后调用inode->f_op->open(inode, file)，
+生成一个file对象，并将inode中的address_space信息传到file中，然后将用户空间的fd关联到该file对象。
+打开文件之后所有后续的读写操作都是通过该fd来进行，在内核层面就是通过对应的file数据结构操作文件，
+比如我们要写入hello world，那么就是通过调用file->f_op->write；
+其实file->f_op其实是讲对应的字节内容写入到address_space中对应的内存中，address_space再选择合适的时间写回磁盘，
+这就是我们常说的缓存系统，当然我们也可以通过fsync系统调用强制将数据同步回存储系统。
+在f_op的函数中都可以看到__user描述信息，说明数据是来自用户空间的内存地址，
+这些数据最终要写到内核缓存的address_space中的page内存中，这就是我们常说的内核拷贝，后来就出来了大家所熟知的零拷贝sendfile，
+直接在两个fd直接拷贝数据，操作的都是内核里面的page数据，不需要到用户地址空间走一遭。
