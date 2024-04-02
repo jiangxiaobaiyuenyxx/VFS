@@ -32,3 +32,6 @@ testfile->f_op->write(file, "hello world", len, 0)
 在f_op的函数中都可以看到__user描述信息，说明数据是来自用户空间的内存地址，
 这些数据最终要写到内核缓存的address_space中的page内存中，这就是我们常说的内核拷贝，后来就出来了大家所熟知的零拷贝sendfile，
 直接在两个fd直接拷贝数据，操作的都是内核里面的page数据，不需要到用户地址空间走一遭。
+
+
+https://zhuanlan.zhihu.com/p/540811688
