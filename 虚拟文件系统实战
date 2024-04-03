@@ -15,7 +15,7 @@ write的系统调用的执行过程如下
 testfile->f_op->write(file, "hello world", len, 0)
 具体流程：
 
-假设现在我们有一个快磁盘设备/dev/sda，我们将其格式化为EX2文件系统，具体怎么将块设备格式化这个我们再设备管理章节在描述。
+假设现在我们有一个块磁盘设备/dev/sda，我们将其格式化为EX2文件系统，具体怎么将块设备格式化这个我们再设备管理章节在描述。
 我们将该磁盘挂载到/testmount 目录，这样内核就会通过挂载模块注册对应的superblock，具体如何挂载且听下回分解。
 我们想要写文件/testmount/testdir/testfile1.txt文件，那么首先会要根据文件名完整路径查找对应的目录项，并在不存在的时候创建对应的inode文件。
 3.1 根据完整路径找到对应的挂载点的superblock，我们这里最精确的匹配sb是/testmount
